@@ -53,9 +53,11 @@ class PhysicsSim():
 
     def reset(self):
         self.time = 0.0
-        self.pose = np.array([0.0, 0.0, 10.0, 0.0, 0.0, 0.0]) if self.init_pose is None else self.init_pose
-        self.v = np.array([0.0, 0.0, 0.0]) if self.init_velocities is None else self.init_velocities
-        self.angular_v = np.array([0.0, 0.0, 0.0]) if self.init_angle_velocities is None else self.init_angle_velocities
+        # As discussed on the Udacity forums, array copies are necessary. Otherwise, if we
+        # mutate anything, we might be unable to reset to the default values.
+        self.pose = np.array([0.0, 0.0, 10.0, 0.0, 0.0, 0.0]) if self.init_pose is None else np.copy(self.init_pose)
+        self.v = np.array([0.0, 0.0, 0.0]) if self.init_velocities is None else np.copy(self.init_velocities)
+        self.angular_v = np.array([0.0, 0.0, 0.0]) if self.init_angle_velocities is None else np.copy(self.init_angle_velocities)
         self.linear_accel = np.array([0.0, 0.0, 0.0])
         self.angular_accels = np.array([0.0, 0.0, 0.0])
         self.prop_wind_speed = np.array([0., 0., 0., 0.])
@@ -111,7 +113,7 @@ class PhysicsSim():
             V = self.prop_wind_speed[prop_number]
             D = self.propeller_size
             n = rotor_speeds[prop_number]
-            J = V / n * D
+            J = V / (n * D)
             # From http://m-selig.ae.illinois.edu/pubs/BrandtSelig-2011-AIAA-2011-1255-LRN-Propellers.pdf
             C_T = max(.12 - .07*max(0, J)-.1*max(0, J)**2, 0)
             thrusts.append(C_T * self.rho * n**2 * D**4)
@@ -128,7 +130,9 @@ class PhysicsSim():
         moments = self.get_moments(thrusts)
 
         self.angular_accels = moments / self.moments_of_inertia
-        angles = self.pose[3:] + self.angular_v * self.dt + 0.5 * self.angular_accels * self.angular_accels * self.dt
+        # As discussed on the Udacity forums, the last 3 elements should be 
+        # self.angular_accels * self.dt * self.dt, not self.angular_accels * self.angular_accels * self.dt
+        angles = self.pose[3:] + self.angular_v * self.dt + 0.5 * self.angular_accels * self.dt * self.dt
         angles = (angles + 2 * np.pi) % (2 * np.pi)
         self.angular_v = self.angular_v + self.angular_accels * self.dt
 
